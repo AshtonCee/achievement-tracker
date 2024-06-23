@@ -4,7 +4,6 @@ import requests
 from bs4 import BeautifulSoup
 import tkinter as tk
 from tkinter import *
-import collections
 
 # Function to fetch achievements from the website
 def fetch_achievements(game_name):
@@ -24,7 +23,7 @@ def fetch_descriptions(game_name):
     web_url = "https://www.trueachievements.com/game/" + game_name.replace(' ', '-') + "/achievements"
     fetched_page = requests.get(web_url)
     beautifulsoup = BeautifulSoup(fetched_page.text, "html.parser")
-    description_list = [description.get_text() for description in beautifulsoup.find_all('p', attrs={'data-bf': '20 - '})]
+    description_list = [description.get_text() for description in beautifulsoup.find_all('p', attrs={"data-bf": True})]
     # Check if the description list is empty (indicating an invalid game name)
     if not description_list:
         raise ValueError("No achievement descriptions found.")
@@ -81,9 +80,9 @@ def show_description(description):
 
 # Function to add checkboxes dynamically to the frame
 def add_checkboxes(frame, achievement_list, description_list, checkbox_states):
-     # Sort achievement_list and description_list together based on achievement_list
+    # Sort achievement_list and description_list together based on achievement_list
     sorted_achievements, sorted_descriptions = zip(*sorted(zip(achievement_list, description_list)))
-    
+
     for achievement, description in zip(sorted_achievements, sorted_descriptions):
         checkbox_value = achievement
         checkbox_var = tk.BooleanVar()
@@ -103,6 +102,8 @@ def add_checkboxes(frame, achievement_list, description_list, checkbox_states):
 
         desc_button = tk.Button(sub_frame, text="Description", command=lambda d=description: show_description(d), bg="#272727", fg="white", font=("lexend", 12))
         desc_button.grid(row=0, column=1, sticky='e')
+
+    return desc_button
 
 # Function to handle mouse wheel scrolling
 def on_mousewheel(event, canvas):
@@ -124,7 +125,7 @@ def main():
             root.configure(bg="#272727")
 
             # Create a canvas widget
-            canvas = tk.Canvas(root, bg="#272727")
+            canvas = tk.Canvas(root, bg="#272727", width=500)
             canvas.pack(side=LEFT, fill=BOTH, expand=True)
 
             scrollbar = tk.Scrollbar(root, orient=VERTICAL, command=canvas.yview)
@@ -146,7 +147,7 @@ def main():
 
             # Add checkboxes dynamically
             add_checkboxes(frame, achievement_list, description_list, checkbox_states)
-
+            
             # Start the Tkinter event loop
             root.mainloop()
 
