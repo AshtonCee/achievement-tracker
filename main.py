@@ -12,7 +12,6 @@ def fetch_achievements(game_name):
     beautifulsoup = BeautifulSoup(fetched_page.text, "html.parser")
     achievement_list = [achievement.string for achievement in beautifulsoup.find_all('a', 'title')]
 
-    # Check if the achievement list is empty (indicating an invalid game name)
     if not achievement_list:
         raise ValueError("Invalid game name or no achievements found for the specified game.")
     
@@ -24,7 +23,6 @@ def fetch_descriptions(game_name):
     fetched_page = requests.get(web_url)
     beautifulsoup = BeautifulSoup(fetched_page.text, "html.parser")
     description_list = [description.get_text() for description in beautifulsoup.find_all('p', attrs={"data-bf": True})]
-    # Check if the description list is empty (indicating an invalid game name)
     if not description_list:
         raise ValueError("No achievement descriptions found.")
     
@@ -66,22 +64,21 @@ def show_description(description):
     top.title("Description")
     top.configure(bg="#272727")
 
-    # Create a frame inside the popup window for better styling control
     frame = tk.Frame(top, bg="#272727")
     frame.pack(padx=10, pady=10)
 
-    # Customize the Label widget to display the description
     desc_label = tk.Label(frame, text=description, bg="#272727", fg="white", font=("lexend", 12), wraplength=400, justify='left')
     desc_label.pack(padx=10, pady=10)
 
-    # Add a close button to the popup window
     close_button = tk.Button(top, text="Close", command=top.destroy, bg="#272727", fg="white", font=("lexend", 12))
     close_button.pack(pady=(0, 10), padx=10)
 
 # Function to add checkboxes dynamically to the frame
 def add_checkboxes(frame, achievement_list, description_list, checkbox_states):
-    # Sort achievement_list and description_list together based on achievement_list
     sorted_achievements, sorted_descriptions = zip(*sorted(zip(achievement_list, description_list)))
+
+    max_checkbox_width = 0
+    max_desc_button_width = 0
 
     for achievement, description in zip(sorted_achievements, sorted_descriptions):
         checkbox_value = achievement
@@ -91,7 +88,6 @@ def add_checkboxes(frame, achievement_list, description_list, checkbox_states):
         sub_frame = tk.Frame(frame, bg="#272727")
         sub_frame.pack(fill='x', anchor='w', pady=1)
 
-        # Create a column configuration for the grid
         sub_frame.columnconfigure(0, weight=1)
         sub_frame.columnconfigure(1, weight=1)
 
@@ -103,56 +99,97 @@ def add_checkboxes(frame, achievement_list, description_list, checkbox_states):
         desc_button = tk.Button(sub_frame, text="Description", command=lambda d=description: show_description(d), bg="#272727", fg="white", font=("lexend", 12))
         desc_button.grid(row=0, column=1, sticky='e')
 
-    return desc_button
+        # Update max widths
+        checkbox_width = checkbox.winfo_reqwidth()
+        desc_button_width = desc_button.winfo_reqwidth()
+        max_checkbox_width = max(max_checkbox_width, checkbox_width)
+        max_desc_button_width = max(max_desc_button_width, desc_button_width)
+
+    # Set canvas width
+    total_width = max_checkbox_width + max_desc_button_width + 3  # adding padding
+    return total_width
 
 # Function to handle mouse wheel scrolling
 def on_mousewheel(event, canvas):
     canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
 
-# Main function to create the GUI
-def main():
-    while True:
+# Function to create the achievements window
+def create_achievements_window(game_input, achievement_list, description_list, checkbox_states):
+    root = tk.Tk()
+    root.title(game_input + " Achievements")
+    root.configure(bg="#272727")
+
+    # Create canvas and scrollbar
+    canvas = tk.Canvas(root, bg="#272727")
+    canvas.pack(side=LEFT, fill=BOTH, expand=True)
+
+    scrollbar = tk.Scrollbar(root, orient=VERTICAL, command=canvas.yview)
+    scrollbar.pack(side=RIGHT, fill=Y)
+
+    canvas.configure(yscrollcommand=scrollbar.set)
+    canvas.bind('<Configure>', lambda e: canvas.configure(scrollregion=canvas.bbox('all')))
+    canvas.bind_all("<MouseWheel>", lambda e: on_mousewheel(e, canvas))
+    
+    # Create a frame inside the canvas
+    frame = tk.Frame(canvas, bg="#272727")
+    frame.pack(fill=BOTH, expand=True)
+    canvas.create_window((0, 0), window=frame, anchor='nw')
+
+    # Add return to menu button
+    return_button = tk.Button(frame, text="Return to Menu", bg="#272727", fg="white", font=("lexend", 12), command=lambda: return_to_menu(root))
+    return_button.pack()
+
+    # Add checkboxes and get required canvas width
+    canvas_width = add_checkboxes(frame, achievement_list, description_list, checkbox_states)
+    canvas.config(width=canvas_width)
+
+    root.mainloop()
+
+# Function to return to the main menu
+def return_to_menu(current_window):
+    current_window.destroy()
+    create_main_menu()
+
+# Function to create the main menu window
+def create_main_menu():
+    menu_root = tk.Tk()
+    menu_root.title("Achievement Tracker")
+    menu_root.configure(bg="#272727")
+    menu_root.geometry("300x200")
+
+    frame = tk.Frame(menu_root, bg="#272727")
+    frame.pack(padx=10)
+
+    game_label = tk.Label(frame, text="Enter game name:", bg="#272727", fg="white", font=("lexend", 12))
+    game_label.pack(pady=(0, 5))
+
+    game_entry = tk.Entry(frame, font=("lexend", 12))
+    game_entry.pack(pady=(0, 10))
+
+    def on_submit():
+        game_input = game_entry.get().title()
         try:
-            game_input = input("Enter game name: ").title()
             achievement_list = fetch_achievements(game_input)
             description_list = fetch_descriptions(game_input)
             checkbox_states = load_checkbox_states()
             save_game_names(game_input, filename="saved_games.json")
-
-            # Create the main window
-            root = tk.Tk()
-            root.title(game_input + " Achievements")
-            root.configure(bg="#272727")
-
-            # Create a canvas widget
-            canvas = tk.Canvas(root, bg="#272727", width=500)
-            canvas.pack(side=LEFT, fill=BOTH, expand=True)
-
-            scrollbar = tk.Scrollbar(root, orient=VERTICAL, command=canvas.yview)
-            scrollbar.pack(side=RIGHT, fill=Y)
-
-            # Configure the canvas to work with the scrollbar
-            canvas.configure(yscrollcommand=scrollbar.set)
-            canvas.bind('<Configure>', lambda e: canvas.configure(scrollregion=canvas.bbox('all')))
-
-            # Bind mouse wheel scrolling to the canvas
-            canvas.bind_all("<MouseWheel>", lambda e: on_mousewheel(e, canvas))
-
-            # Create a frame inside the canvas
-            frame = tk.Frame(canvas, bg="#272727")
-            frame.pack(fill=BOTH, expand=True)
-
-            # Add the frame to a window in the canvas
-            canvas.create_window((0, 0), window=frame, anchor='nw')
-
-            # Add checkboxes dynamically
-            add_checkboxes(frame, achievement_list, description_list, checkbox_states)
-            
-            # Start the Tkinter event loop
-            root.mainloop()
-
-            return game_input
+            menu_root.destroy()
+            create_achievements_window(game_input, achievement_list, description_list, checkbox_states)
         except ValueError as e:
-            print(e)
+            error_label.config(text=str(e))
+    
+    submit_button = tk.Button(frame, text="Submit", command=on_submit, bg="#272727", fg="white", font=("lexend", 12))
+    submit_button.pack()
+
+    close_button = tk.Button(menu_root, text="Close", command=menu_root.destroy, bg="#272727", fg="white", font=("lexend", 12), width=6)
+    close_button.pack()
+
+    error_label = tk.Label(frame, text="", bg="#272727", fg="red", font=("lexend", 12))
+    error_label.pack()
+
+    menu_root.mainloop()
+
+def main():
+    create_main_menu()
 
 main()
